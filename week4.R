@@ -42,3 +42,35 @@ library(readr)
 library(dplyr)        
 library(ggplot2)      
 library(lubridate)
+
+# Task 3: Create Join Key
+wildschwein <- read_delim("wildschwein_BE_2056.csv",",")
+wildschwein <- wildschwein %>% 
+mutate(roundtime_15 = round_date(DatetimeUTC,"15mins"))
+head(wildschwein)
+
+# Task 4: Measuring distance at concurrent locations
+split_by_individual <- split(wildschwein, wildschwein$TierID)
+Sabi <- split_by_individual[["002A"]]
+Rosa <- split_by_individual[["016A"]]
+Ruth <- split_by_individual[["018A"]]
+joined_indivduals <- inner_join(Sabi, Rosa, "roundtime_15", suffix = c(".Sabi", ".Rosa"))
+joined_indivduals <- joined_indivduals %>%
+mutate(
+individ_dist = euclidian_distance(E.Sabi, N.Sabi, E.Rosa, N.Rosa),
+meets = ifelse(individ_dist <= 100, TRUE, FALSE),
+E = (E.Sabi + E.Rosa)/2, #Point in the middle when meeting
+N = (N.Sabi + N.Rosa)/2)
+meeting_points <- subset(joined_indivduals, meets == TRUE, select = c(E.Sabi, N.Sabi, E.Rosa, N.Rosa, individ_dist, roundtime_15, meets, E, N))
+
+# Task 5: Visualize data
+wildschwein_subset <- subset(wildschwein, TierName == "Sabi" | TierName == "Rosa" )
+ggplot()+
+geom_point(data = wildschwein_subset, aes(x = E, y = N, color = TierName), alpha = 0.2, inherit.aes = F)+
+geom_point(data = meeting_points, aes(x = E, y = N, colour = meet), shape = 1, fill = NA, color = "black")+
+xlim(2569250, 2571000)+
+ylim(1204000, 1206500)+
+coord_fixed()
+
+# Task 6: Visualize data as timecube with plotly
+
